@@ -22,7 +22,7 @@
       cursor: pointer; text-align: center; color: #1db954;
     }
 
-    /* Language Selector Badge (Top Left) */
+    /* Language Selector Badge */
     .language-badge {
       position: absolute; top: 20px; left: 20px; background: rgba(255, 255, 255, 0.1);
       border: 1px solid #4f7a7a; padding: 6px 12px; border-radius: 20px;
@@ -35,7 +35,7 @@
     }
     .language-badge select option { color: #0b1a1a; background: #eaf5f0; }
 
-    /* Device Code Badge (Top Right) */
+    /* Device Code Badge */
     .device-code-badge {
       position: absolute; top: 20px; right: 20px; background: rgba(255, 255, 255, 0.1);
       border: 1px solid #4f7a7a; padding: 8px 16px; border-radius: 20px;
@@ -57,7 +57,7 @@
     .waiting-spinner { border: 5px solid rgba(255, 255, 255, 0.1); border-top: 5px solid #1db954; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-    /* Success Screen Animation CSS */
+    /* Success Screen Animation */
     .success-screen {
       display: none; flex-direction: column; align-items: center; justify-content: center;
       animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
@@ -66,6 +66,28 @@
     .success-text { font-size: 32px; font-weight: bold; color: white; margin-bottom: 10px; }
     .success-amount { font-size: 56px; color: #1db954; font-weight: 900; }
     @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+    /* Power Reset Button */
+    .power-btn {
+      position: absolute; bottom: 30px;
+      background: rgba(198, 40, 40, 0.1); border: 1px solid #ef9a9a;
+      padding: 10px 24px; border-radius: 30px;
+      font-size: 16px; font-weight: bold; color: #ef9a9a;
+      display: flex; align-items: center; gap: 8px;
+      cursor: pointer; transition: all 0.2s ease; z-index: 100;
+    }
+    .power-btn:hover { background: rgba(198, 40, 40, 0.25); }
+    .power-btn:active { transform: scale(0.95); }
+
+    /* Reboot / Restart Overlay */
+    #rebootOverlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: #000000; z-index: 999999; flex-direction: column; justify-content: center; align-items: center;
+      color: #1db954; font-family: 'Inter', sans-serif;
+    }
+    .reboot-spinner {
+      font-size: 64px; margin-bottom: 20px; animation: spin 1.5s linear infinite; color: #1db954;
+    }
   </style>
 </head>
 <body>
@@ -75,6 +97,12 @@
     <span class="material-icons" style="font-size: 64px; margin-bottom: 20px;">touch_app</span>
     <h2>Tap anywhere to start Display</h2>
     <p style="color:#b0d4cc; margin-top:10px;">(This allows audio & music to work)</p>
+  </div>
+
+  <!-- Reboot / Restart Overlay -->
+  <div id="rebootOverlay">
+    <span class="material-icons reboot-spinner">settings_backup_restore</span>
+    <h2 id="rebootText" style="color:white; font-size: 24px;">Powering Off...</h2>
   </div>
 
   <!-- Language Selector -->
@@ -111,8 +139,13 @@
     </div>
   </div>
 
+  <!-- Reset Power Button -->
+  <button id="powerResetBtn" class="power-btn">
+    <span class="material-icons">power_settings_new</span> Reset Display
+  </button>
+
   <script>
-    // 1. Language Preference Save/Load
+    // Language Preference Save/Load
     const langSelect = document.getElementById('langSelect');
     const savedLang = localStorage.getItem('displayLanguage') || 'bn';
     langSelect.value = savedLang;
@@ -120,7 +153,7 @@
       localStorage.setItem('displayLanguage', e.target.value);
     });
 
-    // 2. Unlock Audio Context
+    // Unlock Audio Context
     document.getElementById('audioUnlock').addEventListener('click', function() {
       this.style.display = 'none';
       if ('speechSynthesis' in window) {
@@ -129,7 +162,7 @@
       }
     });
 
-    // ----- FIREBASE CONFIG (Do not change) -----
+    // ----- FIREBASE CONFIG -----
     const firebaseConfig = {
       apiKey: "AIzaSyCkNqoGvvIhWivgC_P9PDUvEQ0VS5N6SI0",
       authDomain: "photography-9628b.firebaseapp.com",
@@ -140,161 +173,77 @@
       appId: "1:829346814544:web:1f9ee0722dfa83fef44f55"
     };
 
-    let myCode = localStorage.getItem('uniqueDisplayCode');
-    if (!myCode) {
-      myCode = Math.floor(100000 + Math.random() * 900000).toString();
-      localStorage.setItem('uniqueDisplayCode', myCode);
-    }
+    let myCode = Math.floor(100000 + Math.random() * 900000).toString();
     document.getElementById('myCodeDisplay').innerText = myCode;
 
-    // ----- HAPPY CELEBRATORY MUSIC (EXACT SAME AS PHONE SOUND BOX) -----
+    // ----- AUDIO & MUSIC GENERATION SYSTEM -----
     function playSuccessMusic(callback) {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       if (!AudioContext) { if(callback) callback(); return; }
       const ctx = new AudioContext();
       
-      // 🎉 EXACT SAME HAPPY "MONEY RECEIVED" SOUND AS PHONE SOUND BOX
-      // Classic cash register + celebration jingle
-      
-      // 1. Cash register "DING" (signature sound)
-      const osc1 = ctx.createOscillator();
-      const gain1 = ctx.createGain();
-      osc1.connect(gain1);
-      gain1.connect(ctx.destination);
-      osc1.type = 'sine';
-      osc1.frequency.value = 1000;
-      gain1.gain.setValueAtTime(0.0001, ctx.currentTime);
-      gain1.gain.linearRampToValueAtTime(0.9, ctx.currentTime + 0.03);
-      gain1.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.2);
-      osc1.start(ctx.currentTime);
-      osc1.stop(ctx.currentTime + 0.25);
+      const notes = [
+        { freq: 523.25, time: 0.0, dur: 0.2 },
+        { freq: 659.25, time: 0.2, dur: 0.2 },
+        { freq: 783.99, time: 0.4, dur: 0.4 },
+        { freq: 1046.50, time: 0.8, dur: 0.8 }
+      ];
 
-      // 2. Second "DING" higher (celebratory)
-      const osc2 = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.connect(gain2);
-      gain2.connect(ctx.destination);
-      osc2.type = 'sine';
-      osc2.frequency.value = 1500;
-      gain2.gain.setValueAtTime(0.0001, ctx.currentTime + 0.15);
-      gain2.gain.linearRampToValueAtTime(0.8, ctx.currentTime + 0.18);
-      gain2.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.4);
-      osc2.start(ctx.currentTime + 0.15);
-      osc2.stop(ctx.currentTime + 0.45);
-
-      // 3. Happy ascending notes (like "ta-da!")
-      const notes = [523, 659, 784, 1047];
-      notes.forEach((freq, i) => {
+      notes.forEach(note => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.connect(gain);
         gain.connect(ctx.destination);
+        
         osc.type = 'sine';
-        osc.frequency.value = freq;
-        const startTime = ctx.currentTime + 0.4 + (i * 0.1);
-        gain.gain.setValueAtTime(0.0001, startTime);
-        gain.gain.linearRampToValueAtTime(0.7, startTime + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.1, startTime + 0.2);
-        osc.start(startTime);
-        osc.stop(startTime + 0.25);
+        osc.frequency.value = note.freq;
+        
+        const start = ctx.currentTime + note.time;
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(0.7, start + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.01, start + note.dur);
+        
+        osc.start(start);
+        osc.stop(start + note.dur);
       });
-
-      // 4. Bass "BOOM" for satisfaction
-      const oscBass = ctx.createOscillator();
-      const gainBass = ctx.createGain();
-      oscBass.connect(gainBass);
-      gainBass.connect(ctx.destination);
-      oscBass.type = 'sine';
-      oscBass.frequency.value = 130;
-      gainBass.gain.setValueAtTime(0.0001, ctx.currentTime + 0.6);
-      gainBass.gain.linearRampToValueAtTime(0.8, ctx.currentTime + 0.65);
-      gainBass.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 0.9);
-      oscBass.start(ctx.currentTime + 0.6);
-      oscBass.stop(ctx.currentTime + 0.95);
-
-      // 5. Final sparkly "celebration" sound
-      const oscSpark = ctx.createOscillator();
-      const gainSpark = ctx.createGain();
-      oscSpark.connect(gainSpark);
-      gainSpark.connect(ctx.destination);
-      oscSpark.type = 'triangle';
-      oscSpark.frequency.setValueAtTime(880, ctx.currentTime + 0.8);
-      oscSpark.frequency.linearRampToValueAtTime(1760, ctx.currentTime + 1.1);
-      gainSpark.gain.setValueAtTime(0.0001, ctx.currentTime + 0.8);
-      gainSpark.gain.linearRampToValueAtTime(0.6, ctx.currentTime + 0.85);
-      gainSpark.gain.exponentialRampToValueAtTime(0.02, ctx.currentTime + 1.3);
-      oscSpark.start(ctx.currentTime + 0.8);
-      oscSpark.stop(ctx.currentTime + 1.35);
-
-      setTimeout(() => { if(callback) callback(); }, 1800);
+      
+      setTimeout(() => { if(callback) callback(); }, 2000);
     }
 
-    // ----- UPDATED: VOICE ANNOUNCEMENT - ONLY ORIGINAL BALANCE, NO DOUBLE ZERO -----
     function playSuccessSequence(amount) {
       if (!('speechSynthesis' in window)) return;
       
-      // Play happy music first
       playSuccessMusic(() => {
          const lang = document.getElementById('langSelect').value;
          let text = "";
          let voiceLang = "";
+         let cleanAmount = parseFloat(amount).toString(); 
          
-         // Clean the amount - remove trailing .00 if present
-         let cleanAmount = parseFloat(amount).toString();
-         // If it's a whole number (like 1250.00), show as 1250
-         if (cleanAmount.includes('.') && cleanAmount.split('.')[1] === '0') {
-           cleanAmount = cleanAmount.split('.')[0];
-         }
-         // If it's like 1250.50, keep as 1250.50
-         
-         // Split amount for better pronunciation
-         let parts = cleanAmount.split('.');
-         let wholePart = parts[0] || '0';
-         let decimalPart = parts[1] || '';
-         
-         // BENGALI: Speak only the actual amount without double zero
          if(lang === 'bn') {
-             if (decimalPart && decimalPart !== '0' && decimalPart !== '00') {
-                 text = wholePart + " টাকা " + decimalPart + " পয়সা পেমেন্ট সফলভাবে রিসিভ হয়েছে।";
-             } else {
-                 text = wholePart + " টাকা পেমেন্ট সফলভাবে রিসিভ হয়েছে।";
-             }
+             text = cleanAmount + " টাকার পেমেন্ট সফলভাবে রিসিভ হয়েছে।";
              voiceLang = 'bn-IN';
          } else if(lang === 'hi') {
-             if (decimalPart && decimalPart !== '0' && decimalPart !== '00') {
-                 text = wholePart + " रुपये " + decimalPart + " पैसे का पेमेंट सफलतापूर्वक प्राप्त हुआ।";
-             } else {
-                 text = wholePart + " रुपये का पेमेंट सफलतापूर्वक प्राप्त हुआ।";
-             }
+             text = cleanAmount + " रुपये का पेमेंट सफलतापूर्वक प्राप्त हुआ।";
              voiceLang = 'hi-IN';
          } else {
-             if (decimalPart && decimalPart !== '0' && decimalPart !== '00') {
-                 text = "Payment of " + wholePart + " rupees and " + decimalPart + " paise received successfully.";
-             } else {
-                 text = "Payment of " + wholePart + " rupees received successfully.";
-             }
+             text = "Payment of " + cleanAmount + " rupees received successfully";
              voiceLang = 'en-IN';
          }
          
          const utterance = new SpeechSynthesisUtterance(text);
-         utterance.rate = 0.85;
-         utterance.pitch = 1.0;
+         utterance.rate = 0.9;
          utterance.lang = voiceLang;
-         utterance.volume = 1; // MAX VOLUME
-         
-         // Try to find a good quality voice for the language
-         const voices = speechSynthesis.getVoices();
-         const preferredVoice = voices.find(v => v.lang.includes(voiceLang.split('-')[0]));
-         if (preferredVoice) utterance.voice = preferredVoice;
          
          utterance.onend = () => {
-             // Play outro music after voice ends
              playSuccessMusic(null);
          };
          
          speechSynthesis.speak(utterance);
       });
     }
+
+    let unsubscribe = null; // Firebase listener store
+    let lastPlayedTimestamp = null; 
 
     try {
       firebase.initializeApp(firebaseConfig);
@@ -318,82 +267,125 @@
         } catch (e) { return '0.00'; }
       }
 
-      let lastPlayedTimestamp = null;
+      // Firebase Listener Function
+      function startDisplayListener(currentCode) {
+        if (unsubscribe) { unsubscribe(); } // পুরনো লিসেনার বন্ধ করে দেয়
+        
+        unsubscribe = db.collection('displays').doc(currentCode).onSnapshot((doc) => {
+          if (doc.exists) {
+            const data = doc.data();
 
-      db.collection('displays').doc(myCode).onSnapshot((doc) => {
-        if (doc.exists) {
-          const data = doc.data();
+            if (data.status === 'success') {
+               normalMode.style.display = 'none';
+               successScreen.style.display = 'flex';
+               successAmountDisplay.innerText = `₹ ${data.amount}`;
 
-          if (data.status === 'success') {
-             normalMode.style.display = 'none';
-             successScreen.style.display = 'flex';
-             // Show ONLY the amount that came from main app
-             successAmountDisplay.innerText = `₹ ${data.amount}`;
+               codeBadge.innerHTML = `<span class="material-icons" style="font-size:18px;">check_circle</span> Paid`;
+               codeBadge.style.background = 'rgba(29, 185, 84, 0.2)';
+               codeBadge.style.color = '#1db954';
+               codeBadge.style.borderColor = '#1db954';
 
-             codeBadge.innerHTML = `<span class="material-icons" style="font-size:18px;">check_circle</span> Paid`;
-             codeBadge.style.background = 'rgba(29, 185, 84, 0.2)';
-             codeBadge.style.color = '#1db954';
-             codeBadge.style.borderColor = '#1db954';
+               let currentTimestamp = data.timestamp ? data.timestamp.toMillis() : 0;
+               if (lastPlayedTimestamp !== currentTimestamp) {
+                   lastPlayedTimestamp = currentTimestamp;
+                   playSuccessSequence(data.amount);
+               }
+               return; 
+            } 
+            
+            normalMode.style.display = 'flex';
+            successScreen.style.display = 'none';
 
-             let currentTimestamp = data.timestamp ? data.timestamp.toMillis() : 0;
-             if (lastPlayedTimestamp !== currentTimestamp) {
-                 lastPlayedTimestamp = currentTimestamp;
-                 playSuccessSequence(data.amount);
-             }
-             return; 
-          } 
-          
-          normalMode.style.display = 'flex';
-          successScreen.style.display = 'none';
+            if (data.status === 'connected') {
+              codeBadge.innerHTML = `<span class="material-icons" style="font-size:18px;">wifi</span> Connected: ${currentCode}`;
+              codeBadge.style.background = 'rgba(29, 185, 84, 0.2)';
+              codeBadge.style.color = '#1db954';
+              codeBadge.style.borderColor = '#1db954';
 
-          if (data.status === 'connected') {
-            codeBadge.innerHTML = `<span class="material-icons" style="font-size:18px;">wifi</span> Connected: ${myCode}`;
-            codeBadge.style.background = 'rgba(29, 185, 84, 0.2)';
-            codeBadge.style.color = '#1db954';
-            codeBadge.style.borderColor = '#1db954';
+              if (!data.qr) {
+                statusText.innerHTML = "✅ মেইন অ্যাপের সাথে কানেক্ট হয়েছে!<br><small style='color:#b0d4cc; font-size:15px;'>পেমেন্টের জন্য অপেক্ষা করা হচ্ছে...</small>";
+                statusText.style.color = "#1db954";
+                amountDisplay.style.display = 'none';
+                qrContainer.innerHTML = '<div class="waiting-spinner" id="spinner"></div>';
+              }
+            } 
+            else if (data.status === 'disconnected') {
+              codeBadge.innerHTML = `<span class="material-icons" style="font-size:18px;">cast</span> Code: ${currentCode}`;
+              codeBadge.style.background = 'rgba(198, 40, 40, 0.2)';
+              codeBadge.style.color = '#ef9a9a';
+              codeBadge.style.borderColor = '#ef9a9a';
+              
+              qrContainer.innerHTML = '<div class="waiting-spinner" id="spinner"></div>';
+              amountDisplay.style.display = 'none';
+              statusText.innerHTML = "⚠️ মেইন অ্যাপ থেকে ডিসকানেক্ট করা হয়েছে!";
+              statusText.style.color = "#ef9a9a";
+            }
 
-            if (!data.qr) {
-              statusText.innerHTML = "✅ মেইন অ্যাপের সাথে কানেক্ট হয়েছে!<br><small style='color:#b0d4cc; font-size:15px;'>পেমেন্টের জন্য অপেক্ষা করা হচ্ছে...</small>";
+            if (data.qr && data.status !== 'success') {
+              const amount = extractAmountFromURI(data.qr);
+              amountDisplay.innerText = `₹ ${amount}`;
+              amountDisplay.style.display = 'block';
+              
+              qrContainer.innerHTML = ''; 
+              new QRCode(qrContainer, {
+                text: data.qr, width: 300, height: 300,
+                colorDark: '#0f3b3b', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H
+              });
+
+              statusText.innerHTML = "Scan to Pay";
               statusText.style.color = "#1db954";
+              
+              qrWrapper.classList.add('pulse');
+              setTimeout(() => qrWrapper.classList.remove('pulse'), 300);
+            }
+          }
+        }, (error) => {
+          console.error("Sync Error: ", error);
+          statusText.innerHTML = "ইন্টারনেট কানেকশন চেক করুন!";
+          statusText.style.color = "#ef9a9a";
+        });
+      }
+
+      // Initial Call
+      startDisplayListener(myCode);
+
+      // --- NEW: Reset / Power Button Logic ---
+      document.getElementById('powerResetBtn').addEventListener('click', () => {
+          const overlay = document.getElementById('rebootOverlay');
+          const overlayText = document.getElementById('rebootText');
+          
+          // Step 1: Turn Off Screen visually
+          overlay.style.display = 'flex';
+          overlayText.innerText = 'Powering Off...';
+          
+          setTimeout(() => {
+              // Step 2: Restarting Process
+              overlayText.innerText = 'Restarting System...';
+              
+              // Generate New Code & Reset Variables
+              myCode = Math.floor(100000 + Math.random() * 900000).toString();
+              lastPlayedTimestamp = null;
+              
+              // Reset UI completely
+              normalMode.style.display = 'flex';
+              successScreen.style.display = 'none';
               amountDisplay.style.display = 'none';
               qrContainer.innerHTML = '<div class="waiting-spinner" id="spinner"></div>';
-            }
-          } 
-          else if (data.status === 'disconnected') {
-            codeBadge.innerHTML = `<span class="material-icons" style="font-size:18px;">cast</span> Code: ${myCode}`;
-            codeBadge.style.background = 'rgba(198, 40, 40, 0.2)';
-            codeBadge.style.color = '#ef9a9a';
-            codeBadge.style.borderColor = '#ef9a9a';
-            
-            qrContainer.innerHTML = '<div class="waiting-spinner" id="spinner"></div>';
-            amountDisplay.style.display = 'none';
-            statusText.innerHTML = "⚠️ মেইন অ্যাপ থেকে ডিসকানেক্ট করা হয়েছে!";
-            statusText.style.color = "#ef9a9a";
-          }
+              statusText.innerHTML = "মেইন অ্যাপের সাথে কানেক্ট করুন...";
+              statusText.style.color = "#b0d4cc";
+              
+              codeBadge.innerHTML = `<span class="material-icons" style="font-size:18px;">cast</span> Code: <span id="myCodeDisplay">${myCode}</span>`;
+              codeBadge.style.background = 'rgba(255, 255, 255, 0.1)';
+              codeBadge.style.color = '#b0d4cc';
+              codeBadge.style.borderColor = '#4f7a7a';
 
-          if (data.qr && data.status !== 'success') {
-            // Show ONLY the amount from QR code, nothing extra
-            const amount = extractAmountFromURI(data.qr);
-            amountDisplay.innerText = `₹ ${amount}`;
-            amountDisplay.style.display = 'block';
-            
-            qrContainer.innerHTML = ''; 
-            new QRCode(qrContainer, {
-              text: data.qr, width: 300, height: 300,
-              colorDark: '#0f3b3b', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H
-            });
+              // Step 3: Turn On Screen and Connect to New Code
+              setTimeout(() => {
+                  overlay.style.display = 'none';
+                  startDisplayListener(myCode); // Listen to new OTP
+              }, 1500);
 
-            statusText.innerHTML = "Scan to Pay";
-            statusText.style.color = "#1db954";
-            
-            qrWrapper.classList.add('pulse');
-            setTimeout(() => qrWrapper.classList.remove('pulse'), 300);
-          }
-        }
-      }, (error) => {
-        console.error("Sync Error: ", error);
-        statusText.innerHTML = "ইন্টারনেট কানেকশন চেক করুন!";
-        statusText.style.color = "#ef9a9a";
+          }, 1500);
       });
 
     } catch (e) {
